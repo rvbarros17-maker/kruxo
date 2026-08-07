@@ -1,6 +1,7 @@
 import { getResumoDoMes } from '../services/financeService.js';
 import { getConsultas } from '../services/saudeService.js';
 import { getMetas } from '../services/metasService.js';
+import { getAtividades } from '../services/agendaService.js';
 import { paraChaveData } from '../services/habitosService.js';
 
 function formatarMoeda(valor) {
@@ -16,9 +17,14 @@ function ehHoje(valor) {
 export async function renderDashboard(container) {
   container.innerHTML = '<p class="estado-carregando">Carregando seu resumo financeiro...</p>';
 
-  let resumo, consultas, metas;
+  let resumo, consultas, metas, atividades;
   try {
-    [resumo, consultas, metas] = await Promise.all([getResumoDoMes(), getConsultas(), getMetas()]);
+    [resumo, consultas, metas, atividades] = await Promise.all([
+      getResumoDoMes(),
+      getConsultas(),
+      getMetas(),
+      getAtividades(),
+    ]);
   } catch (erro) {
     container.innerHTML = `<p class="estado-carregando">Não deu pra carregar os dados. Confira sua configuração do Firebase.<br><small>${erro.message}</small></p>`;
     return;
@@ -32,6 +38,9 @@ export async function renderDashboard(container) {
   });
   metas.filter((m) => !m.concluida && m.prazo && ehHoje(m.prazo)).forEach((m) => {
     lembretesHoje.push({ tipo: 'aviso', texto: `Prazo da meta "${m.titulo}" é hoje (${m.progresso}% concluído)` });
+  });
+  atividades.filter((a) => !a.concluida && paraChaveData(new Date(`${a.data}T00:00:00`)) === paraChaveData(new Date())).forEach((a) => {
+    lembretesHoje.push({ tipo: 'aviso', texto: `Atividade hoje: ${a.titulo}${a.horario ? ' às ' + a.horario : ''}` });
   });
 
   const todosAlertas = [...lembretesHoje, ...alertas];

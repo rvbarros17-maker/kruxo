@@ -1,6 +1,7 @@
 import { getContasDoMes, atualizarStatusConta, mesAtualRef } from '../services/financeService.js';
 import { getConsultas, alternarConsultaConcluida } from '../services/saudeService.js';
 import { getMetas, alternarConcluida as alternarMetaConcluida } from '../services/metasService.js';
+import { getAtividades, alternarAtividadeConcluida } from '../services/agendaService.js';
 import { nomeCategoria } from '../constants/categorias.js';
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -25,22 +26,23 @@ export async function renderCalendario(container) {
   container.innerHTML = '<p class="estado-carregando">Carregando o calendário...</p>';
 
   const mesReferencia = mesAtualRef(mesExibido);
-  let contas, consultas, metas;
+  let contas, consultas, metas, atividades;
   try {
-    [contas, consultas, metas] = await Promise.all([
+    [contas, consultas, metas, atividades] = await Promise.all([
       getContasDoMes(mesReferencia),
       getConsultas(),
       getMetas(),
+      getAtividades(),
     ]);
   } catch (erro) {
     container.innerHTML = `<p class="estado-carregando">Não deu pra carregar. ${erro.message}</p>`;
     return;
   }
 
-  desenharTela(container, contas, consultas, metas);
+  desenharTela(container, contas, consultas, metas, atividades);
 }
 
-function montarEventos(contas, consultas, metas, ano, mes) {
+function montarEventos(contas, consultas, metas, atividades, ano, mes) {
   const eventos = [];
 
   contas.forEach((c) => {
@@ -87,17 +89,31 @@ function montarEventos(contas, consultas, metas, ano, mes) {
     });
   });
 
+  atividades.forEach((a) => {
+    const data = paraDate(a.data);
+    if (!data || data.getMonth() !== mes || data.getFullYear() !== ano) return;
+    eventos.push({
+      id: a.id,
+      dia: data.getDate(),
+      nome: a.titulo,
+      tipo: 'atividade',
+      concluido: a.concluida,
+      origem: 'atividade',
+      detalhe: a.horario ? `Atividade · ${a.horario}` : 'Atividade',
+    });
+  });
+
   return eventos;
 }
 
-function desenharTela(container, contas, consultas, metas) {
+function desenharTela(container, contas, consultas, metas, atividades) {
   const ano = mesExibido.getFullYear();
   const mes = mesExibido.getMonth();
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
   const diasNoMes = new Date(ano, mes + 1, 0).getDate();
   const hoje = new Date();
 
-  const eventos = montarEventos(contas, consultas, metas, ano, mes);
+  const eventos = montarEventos(contas, consultas, metas, atividades, ano, mes);
   const eventosPorDia = {};
   eventos.forEach((ev) => {
     eventosPorDia[ev.dia] = eventosPorDia[ev.dia] || [];
@@ -138,6 +154,7 @@ function desenharTela(container, contas, consultas, metas) {
       <span style="color:var(--green)">●</span> Receita &nbsp;
       <span style="color:var(--blue)">●</span> Consulta &nbsp;
       <span style="color:var(--purple)">●</span> Meta &nbsp;
+      <span style="color:var(--teal)">●</span> Atividade &nbsp;
       · clique num item pra marcar como concluído
     </p>
   `;
@@ -161,6 +178,8 @@ function desenharTela(container, contas, consultas, metas) {
         await alternarConsultaConcluida(id, novo);
       } else if (origem === 'meta') {
         await alternarMetaConcluida(id, novo);
+      } else if (origem === 'atividade') {
+        await alternarAtividadeConcluida(id, novo);
       }
       renderCalendario(container);
     });
@@ -172,6 +191,7 @@ const COR_TIPO = {
   receita: 'var(--green)',
   consulta: 'var(--blue)',
   meta: 'var(--purple)',
+  atividade: 'var(--teal)',
 };
 
 function chipEvento(ev) {
