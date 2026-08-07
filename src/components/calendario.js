@@ -1,7 +1,8 @@
 import { getContasDoMes, atualizarStatusConta, mesAtualRef } from '../services/financeService.js';
 import { getConsultas, alternarConsultaConcluida } from '../services/saudeService.js';
 import { getMetas, alternarConcluida as alternarMetaConcluida } from '../services/metasService.js';
-import { getAtividades, alternarAtividadeConcluida } from '../services/agendaService.js';
+import { getAtividades, addAtividade, alternarAtividadeConcluida } from '../services/agendaService.js';
+import { paraChaveData } from '../services/habitosService.js';
 import { nomeCategoria } from '../constants/categorias.js';
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -131,7 +132,7 @@ function desenharTela(container, contas, consultas, metas, atividades) {
     const ehHoje = hoje.getDate() === dia && hoje.getMonth() === mes && hoje.getFullYear() === ano;
     celulas += `
       <div class="dia-celula ${ehHoje ? 'hoje' : ''}">
-        <span class="dia-numero">${dia}</span>
+        <span class="dia-numero" data-acao="abrir-dia" data-dia="${dia}" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">${dia}</span>
         ${eventosDoDia.map((ev) => chipEvento(ev)).join('')}
       </div>
     `;
@@ -184,6 +185,13 @@ function desenharTela(container, contas, consultas, metas, atividades) {
       renderCalendario(container);
     });
   });
+
+  container.querySelectorAll('[data-acao="abrir-dia"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const dia = parseInt(el.dataset.dia, 10);
+      abrirDetalheDia(container, dia, eventosPorDia[dia] || [], ano, mes);
+    });
+  });
 }
 
 const COR_TIPO = {
@@ -203,4 +211,109 @@ function chipEvento(ev) {
       ${ev.nome}
     </button>
   `;
+}
+
+function abrirDetalheDia(container, dia, eventosDoDia, ano, mes) {
+  const dataDia = new Date(ano, mes, dia);
+  const chaveDia = paraChaveData(dataDia);
+  const label = dataDia.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const fundo = document.createElement('div');
+  fundo.className = 'modal-fundo';
+  fundo.innerHTML = `
+    <div class="modal-card" style="max-width:420px">
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px;text-transform:capitalize">${label}</p>
+
+      <div class="lista-contas" style="background:transparent;gap:6px;margin-bottom:16px">
+        ${eventosDoDia.length === 0
+          ? '<p class="legenda-progresso">Nada marcado nesse dia.</p>'
+          : eventosDoDia.map((ev) => linhaDetalheEvento(ev)).join('')
+        }
+      </div>
+
+      <button class="btn-nova" id="btn-nova-atividade-dia" style="width:100%;margin-bottom:12px">+ Nova atividade</button>
+      <button id="btn-fechar-detalhe" style="width:100%">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(fundo);
+
+  fundo.querySelector('#btn-fechar-detalhe').addEventListener('click', () => fundo.remove());
+  fundo.addEventListener('click', (e) => { if (e.target === fundo) fundo.remove(); });
+
+  fundo.querySelectorAll('[data-acao="toggle-evento"]').forEach((chk) => {
+    chk.addEventListener('change', async (e) => {
+      const { id, origem } = e.currentTarget.dataset;
+      const novo = e.currentTarget.checked;
+      if (origem === 'conta') await atualizarStatusConta(id, novo ? 'pago' : 'pendente');
+      else if (origem === 'consulta') await alternarConsultaConcluida(id, novo);
+      else if (origem === 'meta') await alternarMetaConcluida(id, novo);
+      else if (origem === 'atividade') await alternarAtividadeConcluida(id, novo);
+      fundo.remove();
+      renderCalendario(container);
+    });
+  });
+
+  fundo.querySelector('#btn-nova-atividade-dia').addEventListener('click', () => {
+    abrirFormularioAtividade(container, fundo, chaveDia);
+  });
+}
+
+function linhaDetalheEvento(ev) {
+  const cor = COR_TIPO[ev.tipo] || 'var(--ink-muted)';
+  return `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <input type="checkbox" class="check-habito" data-acao="toggle-evento" data-id="${ev.id}" data-origem="${ev.origem}" ${ev.concluido ? 'checked' : ''}>
+      <div style="flex:1;min-width:0;border-left:2px solid ${cor};padding-left:8px">
+        <p style="font-size:13px;font-weight:500;margin:0;${ev.concluido ? 'text-decoration:line-through;color:var(--ink-muted)' : ''}">${ev.nome}</p>
+        <p class="meta-conta" style="margin:0">${ev.detalhe}</p>
+      </div>
+    </div>
+  `;
+}
+
+function abrirFormularioAtividade(container, modalPai, chaveDia) {
+  const fundo = document.createElement('div');
+  fundo.className = 'modal-fundo';
+  fundo.innerHTML = `
+    <div class="modal-card">
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Nova atividade</p>
+
+      <label for="a-titulo">O que você precisa fazer?</label>
+      <input id="a-titulo" type="text" placeholder="Ex: Ligar pro dentista">
+
+      <label for="a-horario">Horário (opcional)</label>
+      <input id="a-horario" type="time">
+
+      <div class="botoes">
+        <button id="btn-cancelar">Cancelar</button>
+        <button id="btn-salvar" class="principal">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(fundo);
+
+  fundo.querySelector('#btn-cancelar').addEventListener('click', () => fundo.remove());
+  fundo.addEventListener('click', (e) => { if (e.target === fundo) fundo.remove(); });
+
+  fundo.querySelector('#btn-salvar').addEventListener('click', async () => {
+    const titulo = fundo.querySelector('#a-titulo').value.trim();
+    const horario = fundo.querySelector('#a-horario').value;
+
+    if (!titulo) { alert('Escreve o que você precisa fazer.'); return; }
+
+    const btn = fundo.querySelector('#btn-salvar');
+    btn.textContent = 'Salvando...';
+    btn.disabled = true;
+
+    try {
+      await addAtividade({ titulo, data: chaveDia, horario });
+      fundo.remove();
+      modalPai.remove();
+      renderCalendario(container);
+    } catch (erro) {
+      btn.textContent = 'Salvar';
+      btn.disabled = false;
+      alert('Não deu pra salvar: ' + erro.message);
+    }
+  });
 }

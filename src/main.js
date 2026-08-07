@@ -8,7 +8,6 @@ import { renderCasal } from './components/casal.js';
 import { renderOrcamento } from './components/orcamento.js';
 import { renderCalendario } from './components/calendario.js';
 import { renderHabitos } from './components/habitos.js';
-import { renderAgenda } from './components/agenda.js';
 import { renderDiario } from './components/diario.js';
 import { renderMetas } from './components/metas.js';
 import { renderLeituras } from './components/leituras.js';
@@ -66,9 +65,6 @@ function renderizarTela() {
       break;
     case 'habitos':
       renderHabitos(telaEl);
-      break;
-    case 'agenda':
-      renderAgenda(telaEl);
       break;
     case 'diario':
       renderDiario(telaEl);

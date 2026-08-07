@@ -178,7 +178,7 @@ function cartaoDiaSemana(data, indice, porChave) {
 
 function renderDiarioUnico(container, corpo, porChave) {
   const chave = paraChaveData(referencia);
-  const entradasDoDia = porChave[chave] || [];
+  const entradasDoDia = [...(porChave[chave] || [])].sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
 
   corpo.innerHTML = `
     <div class="calendario-header">
@@ -223,7 +223,7 @@ function cartaoEntrada(entrada) {
   return `
     <div style="background:var(--surface);border-radius:12px;padding:14px 16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <p style="font-family:var(--font-display);font-size:13px;font-weight:600;margin:0">${entrada.humor || 'Registro'}</p>
+        <p style="font-family:var(--font-display);font-size:13px;font-weight:600;margin:0">${entrada.horario ? entrada.horario + ' · ' : ''}${entrada.humor || 'Registro'}</p>
         <button class="btn-remover-habito" data-acao="excluir-entrada" data-id="${entrada.id}" title="Excluir">×</button>
       </div>
       <p style="font-size:14px;color:var(--ink);margin:0;white-space:pre-wrap">${entrada.texto}</p>
@@ -240,6 +240,9 @@ function abrirFormularioEntrada(container, dataPadrao) {
 
       <label for="e-data">Data</label>
       <input id="e-data" type="date" value="${dataPadrao}">
+
+      <label for="e-horario">Horário (opcional)</label>
+      <input id="e-horario" type="time">
 
       <label for="e-humor">Humor</label>
       <select id="e-humor">
@@ -262,6 +265,7 @@ function abrirFormularioEntrada(container, dataPadrao) {
 
   fundo.querySelector('#btn-salvar').addEventListener('click', async () => {
     const data = fundo.querySelector('#e-data').value;
+    const horario = fundo.querySelector('#e-horario').value;
     const humor = fundo.querySelector('#e-humor').value;
     const texto = fundo.querySelector('#e-texto').value.trim();
 
@@ -275,7 +279,7 @@ function abrirFormularioEntrada(container, dataPadrao) {
     btn.disabled = true;
 
     try {
-      await addEntrada({ data, texto, humor });
+      await addEntrada({ data, texto, humor, horario });
       fundo.remove();
       referencia = new Date(`${data}T00:00:00`);
       renderDiario(container);

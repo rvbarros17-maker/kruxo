@@ -9,11 +9,12 @@ export async function getEntradas() {
   return entradas.sort((a, b) => (a.data < b.data ? 1 : -1));
 }
 
-export async function addEntrada({ data, texto, humor }) {
+export async function addEntrada({ data, texto, humor, horario }) {
   return addDoc(collection(db, 'diarioEntradas'), {
     data,
     texto,
     humor: humor || '',
+    horario: horario || '',
     criadoEm: Timestamp.fromDate(new Date()),
   });
 }

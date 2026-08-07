@@ -20,7 +20,6 @@ const GRUPOS = [
     titulo: 'Planner',
     abas: [
       { id: 'habitos', label: 'Hábitos' },
-      { id: 'agenda', label: 'Agenda' },
       { id: 'diario', label: 'Diário' },
       { id: 'metas', label: 'Metas' },
       { id: 'leituras', label: 'Leituras' },
