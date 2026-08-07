@@ -348,6 +348,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 16px;
 }
 .cabecalho-tela h2 {
@@ -579,4 +581,28 @@ body {
 }
 .estrela.preenchida {
   color: var(--amber);
+}
+
+/* Seletor de modo (Diário: Mensal/Semanal/Diário) */
+.seletor-modo {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 3px;
+}
+.botao-modo {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.botao-modo.ativo {
+  background: var(--surface);
+  color: var(--ink);
 }
