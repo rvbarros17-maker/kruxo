@@ -1,6 +1,8 @@
 import {
   getContasPorNatureza,
   addConta,
+  atualizarConta,
+  excluirConta,
   atualizarStatusConta,
   duplicarConta,
   mesAtualRef,
@@ -17,6 +19,15 @@ function formatarData(timestamp) {
   if (!timestamp) return '—';
   const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   return data.toLocaleDateString('pt-BR');
+}
+
+function paraInputDate(timestamp) {
+  if (!timestamp) return '';
+  const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 function valorPessoal(conta) {
@@ -45,7 +56,6 @@ function desenharTela(container, contas, gastosRapidos) {
   const variaveis = contas.filter((c) => c.tipoFrequencia === 'variavel');
   const totalFixas = fixas.reduce((soma, c) => soma + valorPessoal(c), 0);
   const totalVariaveis = variaveis.reduce((soma, c) => soma + valorPessoal(c), 0);
-
   const totalRapidos = gastosRapidos.reduce((soma, g) => soma + g.valor, 0);
 
   const ordenadas = [...contas].sort((a, b) => {
@@ -113,6 +123,21 @@ function desenharTela(container, contas, gastosRapidos) {
     });
   });
 
+  container.querySelectorAll('[data-acao="editar"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const conta = contas.find((c) => c.id === e.currentTarget.dataset.id);
+      abrirFormularioConta(() => renderDespesas(container), { contaExistente: conta });
+    });
+  });
+
+  container.querySelectorAll('[data-acao="excluir-conta"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      if (!confirm('Excluir essa conta?')) return;
+      await excluirConta(e.currentTarget.dataset.id);
+      renderDespesas(container);
+    });
+  });
+
   container.querySelectorAll('[data-acao="duplicar"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const conta = contas.find((c) => c.id === e.currentTarget.dataset.id);
@@ -141,7 +166,9 @@ export function linhaConta(conta) {
       <button class="badge-status ${conta.status}" data-acao="pagar" data-id="${conta.id}" data-status="${conta.status}">
         ${conta.status === 'pago' ? 'Pago' : 'Pendente'}
       </button>
+      <button class="btn-duplicar" data-acao="editar" data-id="${conta.id}" title="Editar">✎</button>
       <button class="btn-duplicar" data-acao="duplicar" data-id="${conta.id}" title="Duplicar para o mês seguinte">⤴</button>
+      <button class="btn-remover-habito" data-acao="excluir-conta" data-id="${conta.id}" title="Excluir">×</button>
     </div>
   `;
 }
@@ -162,37 +189,38 @@ function linhaGastoRapido(gasto) {
 
 export function abrirFormularioConta(aoSalvar, opcoes = {}) {
   const compartilhadaForcada = opcoes.compartilhadaForcada || false;
+  const contaExistente = opcoes.contaExistente || null;
 
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Nova conta</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${contaExistente ? 'Editar conta' : 'Nova conta'}</p>
 
       <label for="c-nome">Nome</label>
-      <input id="c-nome" type="text" placeholder="Ex: Internet">
+      <input id="c-nome" type="text" placeholder="Ex: Internet" value="${contaExistente?.nome || ''}">
 
       <label for="c-valor">Valor</label>
-      <input id="c-valor" type="number" step="0.01" placeholder="0,00">
+      <input id="c-valor" type="number" step="0.01" placeholder="0,00" value="${contaExistente?.valor || ''}">
 
       <label for="c-categoria">Categoria</label>
       <select id="c-categoria">
-        ${CATEGORIAS_DESPESA.map((cat) => `<option value="${cat.id}">${cat.nome}</option>`).join('')}
+        ${CATEGORIAS_DESPESA.map((cat) => `<option value="${cat.id}" ${contaExistente?.categoriaId === cat.id ? 'selected' : ''}>${cat.nome}</option>`).join('')}
       </select>
 
       <label for="c-frequencia">Frequência</label>
       <select id="c-frequencia">
-        <option value="fixa">Fixa</option>
-        <option value="variavel">Variável</option>
+        <option value="fixa" ${contaExistente?.tipoFrequencia === 'fixa' ? 'selected' : ''}>Fixa</option>
+        <option value="variavel" ${contaExistente?.tipoFrequencia === 'variavel' ? 'selected' : ''}>Variável</option>
       </select>
 
       <label for="c-vencimento">Vencimento</label>
-      <input id="c-vencimento" type="date">
+      <input id="c-vencimento" type="date" value="${paraInputDate(contaExistente?.dataVencimento)}">
 
       ${compartilhadaForcada
         ? '<p style="font-size:12px;color:var(--ink-muted);margin:0 0 16px">Essa conta já entra como despesa do casal — só 50% conta nas suas finanças pessoais.</p>'
         : `<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer">
-             <input id="c-compartilhada" type="checkbox" style="width:auto;margin:0">
+             <input id="c-compartilhada" type="checkbox" style="width:auto;margin:0" ${contaExistente?.compartilhada ? 'checked' : ''}>
              Despesa do casal (conta só 50% pra mim)
            </label>`
       }
@@ -214,7 +242,7 @@ export function abrirFormularioConta(aoSalvar, opcoes = {}) {
     const categoriaId = fundo.querySelector('#c-categoria').value;
     const tipoFrequencia = fundo.querySelector('#c-frequencia').value;
     const vencimentoStr = fundo.querySelector('#c-vencimento').value;
-    const compartilhada = compartilhadaForcada || fundo.querySelector('#c-compartilhada').checked;
+    const compartilhada = compartilhadaForcada || fundo.querySelector('#c-compartilhada')?.checked || false;
 
     if (!nome || !valor || valor <= 0 || !vencimentoStr) {
       alert('Preenche nome, valor e vencimento antes de salvar.');
@@ -229,16 +257,15 @@ export function abrirFormularioConta(aoSalvar, opcoes = {}) {
     btn.disabled = true;
 
     try {
-      await addConta({
-        nome,
-        valor,
-        categoriaId,
-        natureza: 'despesa',
-        tipoFrequencia,
-        dataVencimento,
-        compartilhada,
-        mesReferencia,
-      });
+      if (contaExistente) {
+        await atualizarConta(contaExistente.id, {
+          nome, valor, categoriaId, tipoFrequencia, dataVencimento, compartilhada, mesReferencia,
+        });
+      } else {
+        await addConta({
+          nome, valor, categoriaId, natureza: 'despesa', tipoFrequencia, dataVencimento, compartilhada, mesReferencia,
+        });
+      }
       fundo.remove();
       aoSalvar();
     } catch (erro) {

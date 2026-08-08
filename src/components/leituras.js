@@ -1,6 +1,7 @@
 import {
   getLivros,
   addLivro,
+  atualizarLivro,
   enviarCapa,
   removerCapa,
   atualizarPaginas,
@@ -33,9 +34,10 @@ function pickerEstrelasHTML(idPicker) {
   `;
 }
 
-function ligarPicker(fundo, idPicker) {
-  let selecionado = 0;
+function ligarPicker(fundo, idPicker, valorInicial = 0) {
+  let selecionado = valorInicial;
   const botoes = fundo.querySelectorAll(`#${idPicker} .estrela`);
+  botoes.forEach((b, i) => b.classList.toggle('preenchida', i < selecionado));
   botoes.forEach((btn, idx) => {
     btn.addEventListener('click', () => {
       selecionado = idx + 1;
@@ -111,6 +113,13 @@ function desenharTela(container, livros) {
       renderLeituras(container);
     });
   });
+  container.querySelectorAll('[data-acao="editar-livro"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const livro = livros.find((l) => l.id === e.currentTarget.dataset.id);
+      abrirFormularioLivro(container, livro);
+    });
+  });
+
   container.querySelectorAll('[data-acao="excluir-livro"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       if (!confirm('Excluir esse livro da estante?')) return;
@@ -162,7 +171,10 @@ function cartaoLivro(livro) {
             <p style="font-family:var(--font-display);font-size:14px;font-weight:600;margin:0 0 2px">${livro.titulo}</p>
             ${livro.autor ? `<p style="font-size:12px;color:var(--ink-muted);margin:0 0 6px">${livro.autor}</p>` : ''}
           </div>
-          <button class="btn-remover-habito" data-acao="excluir-livro" data-id="${livro.id}" title="Excluir">×</button>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="btn-duplicar" data-acao="editar-livro" data-id="${livro.id}" title="Editar">✎</button>
+            <button class="btn-remover-habito" data-acao="excluir-livro" data-id="${livro.id}" title="Excluir">×</button>
+          </div>
         </div>
 
         ${estrelasHTML(livro.avaliacao || 0, livro.id, 'avaliar-livro')}
@@ -189,40 +201,42 @@ function cartaoLivro(livro) {
   `;
 }
 
-function abrirFormularioLivro(container) {
+function abrirFormularioLivro(container, livroExistente = null) {
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Novo livro</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${livroExistente ? 'Editar livro' : 'Novo livro'}</p>
 
       <label for="l-titulo">Título</label>
-      <input id="l-titulo" type="text" placeholder="Ex: O Cortiço">
+      <input id="l-titulo" type="text" placeholder="Ex: O Cortiço" value="${livroExistente?.titulo || ''}">
 
       <label for="l-autor">Autor (opcional)</label>
-      <input id="l-autor" type="text" placeholder="Ex: Aluísio Azevedo">
+      <input id="l-autor" type="text" placeholder="Ex: Aluísio Azevedo" value="${livroExistente?.autor || ''}">
 
       <label for="l-paginas">Total de páginas (opcional)</label>
-      <input id="l-paginas" type="number" min="0" placeholder="0">
+      <input id="l-paginas" type="number" min="0" placeholder="0" value="${livroExistente?.paginasTotal || ''}">
 
       <label for="l-status">Status</label>
       <select id="l-status">
-        <option value="quero_ler">Quero ler</option>
-        <option value="lendo">Lendo</option>
-        <option value="lido">Lido</option>
+        <option value="quero_ler" ${livroExistente?.status === 'quero_ler' ? 'selected' : ''}>Quero ler</option>
+        <option value="lendo" ${livroExistente?.status === 'lendo' ? 'selected' : ''}>Lendo</option>
+        <option value="lido" ${livroExistente?.status === 'lido' ? 'selected' : ''}>Lido</option>
       </select>
 
       <label for="l-inicio">Início da leitura (opcional)</label>
-      <input id="l-inicio" type="date">
+      <input id="l-inicio" type="date" value="${livroExistente?.dataInicio || ''}">
 
       <label for="l-fim">Fim da leitura (opcional)</label>
-      <input id="l-fim" type="date">
+      <input id="l-fim" type="date" value="${livroExistente?.dataFim || ''}">
 
       <label>Avaliação (opcional)</label>
       ${pickerEstrelasHTML('l-avaliacao-picker')}
 
-      <label for="l-capa" style="margin-top:12px">Capa (opcional)</label>
-      <input id="l-capa" type="file" accept="image/*" style="margin-bottom:16px">
+      ${livroExistente ? '' : `
+        <label for="l-capa" style="margin-top:12px">Capa (opcional)</label>
+        <input id="l-capa" type="file" accept="image/*" style="margin-bottom:16px">
+      `}
 
       <div class="botoes">
         <button id="btn-cancelar">Cancelar</button>
@@ -232,7 +246,7 @@ function abrirFormularioLivro(container) {
   `;
   document.body.appendChild(fundo);
 
-  const pegarAvaliacao = ligarPicker(fundo, 'l-avaliacao-picker');
+  const pegarAvaliacao = ligarPicker(fundo, 'l-avaliacao-picker', livroExistente?.avaliacao || 0);
 
   fundo.querySelector('#btn-cancelar').addEventListener('click', () => fundo.remove());
   fundo.addEventListener('click', (e) => { if (e.target === fundo) fundo.remove(); });
@@ -244,7 +258,7 @@ function abrirFormularioLivro(container) {
     const status = fundo.querySelector('#l-status').value;
     const dataInicio = fundo.querySelector('#l-inicio').value;
     const dataFim = fundo.querySelector('#l-fim').value;
-    const capaFile = fundo.querySelector('#l-capa').files[0] || null;
+    const capaFile = fundo.querySelector('#l-capa')?.files[0] || null;
 
     if (!titulo) { alert('Dá um título pro livro antes de salvar.'); return; }
 
@@ -253,7 +267,16 @@ function abrirFormularioLivro(container) {
     btn.disabled = true;
 
     try {
-      await addLivro({ titulo, autor, paginasTotal, status, dataInicio, dataFim, avaliacao: pegarAvaliacao(), capaFile });
+      if (livroExistente) {
+        await atualizarLivro(livroExistente.id, {
+          titulo, autor, paginasTotal, status, dataInicio,
+          dataFim: status === 'lido' ? dataFim : '',
+          avaliacao: pegarAvaliacao(),
+          paginasLidas: status === 'lido' ? paginasTotal : livroExistente.paginasLidas,
+        });
+      } else {
+        await addLivro({ titulo, autor, paginasTotal, status, dataInicio, dataFim, avaliacao: pegarAvaliacao(), capaFile });
+      }
       fundo.remove();
       renderLeituras(container);
     } catch (erro) {

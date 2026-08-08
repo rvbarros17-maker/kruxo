@@ -21,6 +21,10 @@ export async function alternarAtividadeConcluida(id, concluida) {
   await updateDoc(doc(db, 'atividades', id), { concluida });
 }
 
+export async function atualizarAtividade(id, dados) {
+  await updateDoc(doc(db, 'atividades', id), dados);
+}
+
 export async function excluirAtividade(id) {
   await deleteDoc(doc(db, 'atividades', id));
 }

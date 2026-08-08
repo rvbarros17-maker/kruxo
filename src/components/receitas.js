@@ -1,6 +1,8 @@
 import {
   getContasPorNatureza,
   addConta,
+  atualizarConta,
+  excluirConta,
   atualizarStatusConta,
   duplicarConta,
   mesAtualRef,
@@ -15,6 +17,15 @@ function formatarData(timestamp) {
   if (!timestamp) return '—';
   const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   return data.toLocaleDateString('pt-BR');
+}
+
+function paraInputDate(timestamp) {
+  if (!timestamp) return '';
+  const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 export async function renderReceitas(container) {
@@ -83,6 +94,21 @@ function desenharTela(container, contas) {
     });
   });
 
+  container.querySelectorAll('[data-acao="editar"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const conta = contas.find((c) => c.id === e.currentTarget.dataset.id);
+      abrirFormularioReceita(container, conta);
+    });
+  });
+
+  container.querySelectorAll('[data-acao="excluir-conta"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      if (!confirm('Excluir essa receita?')) return;
+      await excluirConta(e.currentTarget.dataset.id);
+      renderReceitas(container);
+    });
+  });
+
   container.querySelectorAll('[data-acao="duplicar"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const conta = contas.find((c) => c.id === e.currentTarget.dataset.id);
@@ -102,37 +128,39 @@ function linhaConta(conta) {
       <button class="badge-status ${conta.status}" data-acao="pagar" data-id="${conta.id}" data-status="${conta.status}">
         ${conta.status === 'pago' ? 'Recebido' : 'Pendente'}
       </button>
+      <button class="btn-duplicar" data-acao="editar" data-id="${conta.id}" title="Editar">✎</button>
       <button class="btn-duplicar" data-acao="duplicar" data-id="${conta.id}" title="Duplicar para o mês seguinte">⤴</button>
+      <button class="btn-remover-habito" data-acao="excluir-conta" data-id="${conta.id}" title="Excluir">×</button>
     </div>
   `;
 }
 
-function abrirFormularioReceita(container) {
+function abrirFormularioReceita(container, contaExistente = null) {
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Nova receita</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${contaExistente ? 'Editar receita' : 'Nova receita'}</p>
 
       <label for="r-nome">Nome</label>
-      <input id="r-nome" type="text" placeholder="Ex: Salário">
+      <input id="r-nome" type="text" placeholder="Ex: Salário" value="${contaExistente?.nome || ''}">
 
       <label for="r-valor">Valor</label>
-      <input id="r-valor" type="number" step="0.01" placeholder="0,00">
+      <input id="r-valor" type="number" step="0.01" placeholder="0,00" value="${contaExistente?.valor || ''}">
 
       <label for="r-categoria">Categoria</label>
       <select id="r-categoria">
-        ${CATEGORIAS_RECEITA.map((cat) => `<option value="${cat.id}">${cat.nome}</option>`).join('')}
+        ${CATEGORIAS_RECEITA.map((cat) => `<option value="${cat.id}" ${contaExistente?.categoriaId === cat.id ? 'selected' : ''}>${cat.nome}</option>`).join('')}
       </select>
 
       <label for="r-frequencia">Frequência</label>
       <select id="r-frequencia">
-        <option value="fixa">Fixa</option>
-        <option value="variavel">Variável</option>
+        <option value="fixa" ${contaExistente?.tipoFrequencia === 'fixa' ? 'selected' : ''}>Fixa</option>
+        <option value="variavel" ${contaExistente?.tipoFrequencia === 'variavel' ? 'selected' : ''}>Variável</option>
       </select>
 
       <label for="r-data">Data prevista de recebimento</label>
-      <input id="r-data" type="date">
+      <input id="r-data" type="date" value="${paraInputDate(contaExistente?.dataVencimento)}">
 
       <div class="botoes">
         <button id="btn-cancelar">Cancelar</button>
@@ -165,16 +193,15 @@ function abrirFormularioReceita(container) {
     btn.disabled = true;
 
     try {
-      await addConta({
-        nome,
-        valor,
-        categoriaId,
-        natureza: 'receita',
-        tipoFrequencia,
-        dataVencimento,
-        compartilhada: false,
-        mesReferencia,
-      });
+      if (contaExistente) {
+        await atualizarConta(contaExistente.id, {
+          nome, valor, categoriaId, tipoFrequencia, dataVencimento, mesReferencia,
+        });
+      } else {
+        await addConta({
+          nome, valor, categoriaId, natureza: 'receita', tipoFrequencia, dataVencimento, compartilhada: false, mesReferencia,
+        });
+      }
       fundo.remove();
       renderReceitas(container);
     } catch (erro) {

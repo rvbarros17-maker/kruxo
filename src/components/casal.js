@@ -1,4 +1,4 @@
-import { getContasDoMes, atualizarStatusConta } from '../services/financeService.js';
+import { getContasDoMes, atualizarStatusConta, excluirConta } from '../services/financeService.js';
 import { nomeCategoria } from '../constants/categorias.js';
 import { abrirFormularioConta, abrirConfirmarDuplicacao } from './despesas.js';
 
@@ -84,6 +84,21 @@ function desenharTela(container, contas) {
     });
   });
 
+  container.querySelectorAll('[data-acao="editar"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const conta = contas.find((c) => c.id === e.currentTarget.dataset.id);
+      abrirFormularioConta(() => renderCasal(container), { compartilhadaForcada: true, contaExistente: conta });
+    });
+  });
+
+  container.querySelectorAll('[data-acao="excluir-conta"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      if (!confirm('Excluir essa despesa do casal?')) return;
+      await excluirConta(e.currentTarget.dataset.id);
+      renderCasal(container);
+    });
+  });
+
   container.querySelectorAll('[data-acao="duplicar"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const conta = contas.find((c) => c.id === e.currentTarget.dataset.id);
@@ -103,7 +118,9 @@ function linhaCasal(conta) {
       <button class="badge-status ${conta.status}" data-acao="pagar" data-id="${conta.id}" data-status="${conta.status}">
         ${conta.status === 'pago' ? 'Pago' : 'Pendente'}
       </button>
+      <button class="btn-duplicar" data-acao="editar" data-id="${conta.id}" title="Editar">✎</button>
       <button class="btn-duplicar" data-acao="duplicar" data-id="${conta.id}" title="Duplicar para o mês seguinte">⤴</button>
+      <button class="btn-remover-habito" data-acao="excluir-conta" data-id="${conta.id}" title="Excluir">×</button>
     </div>
   `;
 }

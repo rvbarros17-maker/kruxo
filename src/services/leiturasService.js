@@ -51,6 +51,10 @@ export async function removerCapa(livroId, capaPath) {
   await updateDoc(doc(db, 'livros', livroId), { capaUrl: '', capaPath: '' });
 }
 
+export async function atualizarLivro(id, dados) {
+  await updateDoc(doc(db, 'livros', id), dados);
+}
+
 export async function atualizarPaginas(id, paginasLidas, paginasTotal) {
   const status = paginasLidas >= paginasTotal && paginasTotal > 0 ? 'lido' : 'lendo';
   await updateDoc(doc(db, 'livros', id), { paginasLidas, status });

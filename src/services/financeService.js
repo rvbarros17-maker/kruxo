@@ -251,6 +251,16 @@ export async function addConta({
   });
 }
 
+export async function atualizarConta(id, dados) {
+  const payload = { ...dados };
+  if (payload.dataVencimento) payload.dataVencimento = Timestamp.fromDate(payload.dataVencimento);
+  await updateDoc(doc(db, 'contas', id), payload);
+}
+
+export async function excluirConta(id) {
+  await deleteDoc(doc(db, 'contas', id));
+}
+
 export async function atualizarStatusConta(contaId, novoStatus) {
   await updateDoc(doc(db, 'contas', contaId), { status: novoStatus });
 }
