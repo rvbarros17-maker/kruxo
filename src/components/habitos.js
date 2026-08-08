@@ -1,6 +1,7 @@
 import {
   getHabitosAtivos,
   addHabito,
+  atualizarHabito,
   desativarHabito,
   getRegistros,
   marcarConcluido,
@@ -12,10 +13,12 @@ import {
 import {
   getConsultas,
   addConsulta,
+  atualizarConsulta,
   alternarConsultaConcluida,
   excluirConsulta,
   getMedicacoes,
   addMedicacao,
+  atualizarMedicacao,
   desativarMedicacao,
 } from '../services/saudeService.js';
 
@@ -86,6 +89,7 @@ function desenharTela(container, dados) {
             ${habitos.map((h) => `
               <th>
                 ${h.nome}
+                <button class="btn-remover-habito" data-acao="editar-habito" data-id="${h.id}" data-nome="${h.nome}" title="Editar">✎</button>
                 <button class="btn-remover-habito" data-acao="remover-habito" data-id="${h.id}" title="Remover hábito">×</button>
               </th>
             `).join('')}
@@ -163,6 +167,12 @@ function desenharTela(container, dados) {
     abrirFormularioHabito(container);
   });
 
+  container.querySelectorAll('[data-acao="editar-habito"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      abrirFormularioHabito(container, { id: e.currentTarget.dataset.id, nome: e.currentTarget.dataset.nome });
+    });
+  });
+
   container.querySelectorAll('[data-acao="remover-habito"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       if (!confirm('Remover esse hábito? O histórico dele é mantido, mas ele some da lista.')) return;
@@ -194,6 +204,12 @@ function desenharTela(container, dados) {
   container.querySelector('#btn-nova-consulta').addEventListener('click', () => {
     abrirFormularioConsulta(container);
   });
+  container.querySelectorAll('[data-acao="editar-consulta"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const consulta = consultas.find((c) => c.id === e.currentTarget.dataset.id);
+      abrirFormularioConsulta(container, consulta);
+    });
+  });
   container.querySelectorAll('[data-acao="concluir-consulta"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       const consulta = consultas.find((c) => c.id === e.currentTarget.dataset.id);
@@ -211,6 +227,12 @@ function desenharTela(container, dados) {
 
   container.querySelector('#btn-nova-medicacao').addEventListener('click', () => {
     abrirFormularioMedicacao(container);
+  });
+  container.querySelectorAll('[data-acao="editar-medicacao"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const med = medicacoes.find((m) => m.id === e.currentTarget.dataset.id);
+      abrirFormularioMedicacao(container, med);
+    });
   });
   container.querySelectorAll('[data-acao="remover-medicacao"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
@@ -232,7 +254,8 @@ function cartaoConsulta(consulta) {
         <button class="badge-status ${consulta.concluida ? 'pago' : 'pendente'}" data-acao="concluir-consulta" data-id="${consulta.id}">
           ${consulta.concluida ? 'Feita' : 'Marcada'}
         </button>
-        <button class="btn-remover-habito" data-acao="excluir-consulta" data-id="${consulta.id}">×</button>
+        <button class="btn-remover-habito" data-acao="editar-consulta" data-id="${consulta.id}" title="Editar">✎</button>
+        <button class="btn-remover-habito" data-acao="excluir-consulta" data-id="${consulta.id}" title="Excluir">×</button>
       </div>
     </div>
   `;
@@ -245,19 +268,22 @@ function cartaoMedicacao(med) {
         <p style="font-size:13px;font-weight:500;margin:0">${med.nome}</p>
         <p class="meta-conta" style="margin:0">${med.dosagem}${med.horario ? ' · ' + med.horario : ''}</p>
       </div>
-      <button class="btn-remover-habito" data-acao="remover-medicacao" data-id="${med.id}">×</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn-remover-habito" data-acao="editar-medicacao" data-id="${med.id}" title="Editar">✎</button>
+        <button class="btn-remover-habito" data-acao="remover-medicacao" data-id="${med.id}" title="Excluir">×</button>
+      </div>
     </div>
   `;
 }
 
-function abrirFormularioHabito(container) {
+function abrirFormularioHabito(container, habitoExistente = null) {
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Novo hábito</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${habitoExistente ? 'Editar hábito' : 'Novo hábito'}</p>
       <label for="h-nome">Nome</label>
-      <input id="h-nome" type="text" placeholder="Ex: Beber 2L de água">
+      <input id="h-nome" type="text" placeholder="Ex: Beber 2L de água" value="${habitoExistente?.nome || ''}">
       <div class="botoes">
         <button id="btn-cancelar">Cancelar</button>
         <button id="btn-salvar" class="principal">Salvar</button>
@@ -274,7 +300,8 @@ function abrirFormularioHabito(container) {
     btn.textContent = 'Salvando...';
     btn.disabled = true;
     try {
-      await addHabito(nome);
+      if (habitoExistente) await atualizarHabito(habitoExistente.id, nome);
+      else await addHabito(nome);
       fundo.remove();
       renderHabitos(container);
     } catch (erro) {
@@ -285,18 +312,18 @@ function abrirFormularioHabito(container) {
   });
 }
 
-function abrirFormularioConsulta(container) {
+function abrirFormularioConsulta(container, consultaExistente = null) {
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Nova consulta</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${consultaExistente ? 'Editar consulta' : 'Nova consulta'}</p>
       <label for="co-titulo">Título</label>
-      <input id="co-titulo" type="text" placeholder="Ex: Dentista">
+      <input id="co-titulo" type="text" placeholder="Ex: Dentista" value="${consultaExistente?.titulo || ''}">
       <label for="co-data">Data</label>
-      <input id="co-data" type="date">
+      <input id="co-data" type="date" value="${consultaExistente?.data || ''}">
       <label for="co-local">Local (opcional)</label>
-      <input id="co-local" type="text" placeholder="Ex: Clínica Sorriso">
+      <input id="co-local" type="text" placeholder="Ex: Clínica Sorriso" value="${consultaExistente?.local || ''}">
       <div class="botoes">
         <button id="btn-cancelar">Cancelar</button>
         <button id="btn-salvar" class="principal">Salvar</button>
@@ -315,7 +342,8 @@ function abrirFormularioConsulta(container) {
     btn.textContent = 'Salvando...';
     btn.disabled = true;
     try {
-      await addConsulta({ titulo, data, local });
+      if (consultaExistente) await atualizarConsulta(consultaExistente.id, { titulo, data, local });
+      else await addConsulta({ titulo, data, local });
       fundo.remove();
       renderHabitos(container);
     } catch (erro) {
@@ -326,18 +354,18 @@ function abrirFormularioConsulta(container) {
   });
 }
 
-function abrirFormularioMedicacao(container) {
+function abrirFormularioMedicacao(container, medExistente = null) {
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Nova medicação</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${medExistente ? 'Editar medicação' : 'Nova medicação'}</p>
       <label for="me-nome">Nome</label>
-      <input id="me-nome" type="text" placeholder="Ex: Vitamina D">
+      <input id="me-nome" type="text" placeholder="Ex: Vitamina D" value="${medExistente?.nome || ''}">
       <label for="me-dosagem">Dosagem (opcional)</label>
-      <input id="me-dosagem" type="text" placeholder="Ex: 1 cápsula">
+      <input id="me-dosagem" type="text" placeholder="Ex: 1 cápsula" value="${medExistente?.dosagem || ''}">
       <label for="me-horario">Horário (opcional)</label>
-      <input id="me-horario" type="text" placeholder="Ex: Após o almoço">
+      <input id="me-horario" type="text" placeholder="Ex: Após o almoço" value="${medExistente?.horario || ''}">
       <div class="botoes">
         <button id="btn-cancelar">Cancelar</button>
         <button id="btn-salvar" class="principal">Salvar</button>
@@ -356,7 +384,8 @@ function abrirFormularioMedicacao(container) {
     btn.textContent = 'Salvando...';
     btn.disabled = true;
     try {
-      await addMedicacao({ nome, dosagem, horario });
+      if (medExistente) await atualizarMedicacao(medExistente.id, { nome, dosagem, horario });
+      else await addMedicacao({ nome, dosagem, horario });
       fundo.remove();
       renderHabitos(container);
     } catch (erro) {

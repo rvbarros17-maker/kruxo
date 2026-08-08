@@ -15,6 +15,10 @@ export async function addConsulta({ titulo, data, local }) {
   return addDoc(collection(db, 'consultas'), { titulo, data, local: local || '', concluida: false });
 }
 
+export async function atualizarConsulta(id, dados) {
+  await updateDoc(doc(db, 'consultas', id), dados);
+}
+
 export async function alternarConsultaConcluida(id, concluida) {
   await updateDoc(doc(db, 'consultas', id), { concluida });
 }
@@ -36,6 +40,10 @@ export async function addMedicacao({ nome, dosagem, horario }) {
     horario: horario || '',
     ativo: true,
   });
+}
+
+export async function atualizarMedicacao(id, dados) {
+  await updateDoc(doc(db, 'medicacoes', id), dados);
 }
 
 export async function desativarMedicacao(id) {

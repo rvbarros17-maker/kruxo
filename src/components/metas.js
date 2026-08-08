@@ -1,6 +1,7 @@
 import {
   getMetas,
   addMeta,
+  atualizarMeta,
   atualizarProgresso,
   alternarConcluida,
   excluirMeta,
@@ -10,6 +11,15 @@ function formatarData(timestamp) {
   if (!timestamp) return null;
   const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   return data.toLocaleDateString('pt-BR');
+}
+
+function paraInputDate(timestamp) {
+  if (!timestamp) return '';
+  const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 export async function renderMetas(container) {
@@ -53,6 +63,13 @@ function desenharTela(container, metas) {
 
   container.querySelector('#btn-nova-meta').addEventListener('click', () => {
     abrirFormularioMeta(container);
+  });
+
+  container.querySelectorAll('[data-acao="editar-meta"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const meta = metas.find((m) => m.id === e.currentTarget.dataset.id);
+      abrirFormularioMeta(container, meta);
+    });
   });
 
   container.querySelectorAll('[data-acao="progresso"]').forEach((btn) => {
@@ -101,8 +118,9 @@ function cartaoMeta(meta) {
         ${meta.progresso}% ${prazo ? `· prazo ${prazo}` : ''}
       </p>
 
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${!meta.concluida ? `<button class="btn-nova" style="padding:6px 10px;font-size:12px" data-acao="progresso" data-id="${meta.id}">Atualizar progresso</button>` : ''}
+        <button class="btn-duplicar" style="width:auto;padding:0 10px;font-size:12px" data-acao="editar-meta" data-id="${meta.id}">Editar</button>
         <button class="btn-duplicar" style="width:auto;padding:0 10px;font-size:12px" data-acao="concluir" data-id="${meta.id}">
           ${meta.concluida ? 'Reabrir' : 'Concluir'}
         </button>
@@ -111,21 +129,21 @@ function cartaoMeta(meta) {
   `;
 }
 
-function abrirFormularioMeta(container) {
+function abrirFormularioMeta(container, metaExistente = null) {
   const fundo = document.createElement('div');
   fundo.className = 'modal-fundo';
   fundo.innerHTML = `
     <div class="modal-card">
-      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">Nova meta</p>
+      <p style="font-family:var(--font-display);font-size:16px;font-weight:500;margin:0 0 16px">${metaExistente ? 'Editar meta' : 'Nova meta'}</p>
 
       <label for="m-titulo">Título</label>
-      <input id="m-titulo" type="text" placeholder="Ex: Ler 12 livros esse ano">
+      <input id="m-titulo" type="text" placeholder="Ex: Ler 12 livros esse ano" value="${metaExistente?.titulo || ''}">
 
       <label for="m-descricao">Descrição (opcional)</label>
-      <input id="m-descricao" type="text" placeholder="Detalhes da meta">
+      <input id="m-descricao" type="text" placeholder="Detalhes da meta" value="${metaExistente?.descricao || ''}">
 
       <label for="m-prazo">Prazo (opcional)</label>
-      <input id="m-prazo" type="date">
+      <input id="m-prazo" type="date" value="${paraInputDate(metaExistente?.prazo)}">
 
       <div class="botoes">
         <button id="btn-cancelar">Cancelar</button>
@@ -153,11 +171,12 @@ function abrirFormularioMeta(container) {
     btn.disabled = true;
 
     try {
-      await addMeta({
-        titulo,
-        descricao,
-        prazo: prazoStr ? new Date(`${prazoStr}T00:00:00`) : null,
-      });
+      const prazo = prazoStr ? new Date(`${prazoStr}T00:00:00`) : null;
+      if (metaExistente) {
+        await atualizarMeta(metaExistente.id, { titulo, descricao, prazo });
+      } else {
+        await addMeta({ titulo, descricao, prazo });
+      }
       fundo.remove();
       renderMetas(container);
     } catch (erro) {

@@ -19,6 +19,10 @@ export async function addMeta({ titulo, descricao, prazo }) {
   });
 }
 
+export async function atualizarMeta(id, dados) {
+  await updateDoc(doc(db, 'metas', id), dados);
+}
+
 export async function atualizarProgresso(id, progresso) {
   const concluida = progresso >= 100;
   await updateDoc(doc(db, 'metas', id), { progresso, concluida });

@@ -46,6 +46,10 @@ export async function addHabito(nome) {
   });
 }
 
+export async function atualizarHabito(id, nome) {
+  await updateDoc(doc(db, 'habitos', id), { nome });
+}
+
 export async function desativarHabito(habitoId) {
   await updateDoc(doc(db, 'habitos', habitoId), { ativo: false });
 }
