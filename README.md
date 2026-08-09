@@ -37,6 +37,9 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
+    match /{path=**}/lancamentos/{lancId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
   }
 }
 ```
