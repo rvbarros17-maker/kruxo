@@ -16,30 +16,34 @@ npm run dev
 3. Em *Configurações do projeto > Seus apps*, crie um app Web e copie as credenciais.
 4. Cole essas credenciais em `src/firebase.js`, no lugar de `firebaseConfig`.
 
-## Regras do Firestore (modo de teste, ajustar depois com autenticação)
+## Configurar o login (Firebase Auth)
+
+1. No console Firebase, menu lateral **Build → Authentication → Começar**.
+2. Na aba **Sign-in method**, ative o provedor **E-mail/senha**.
+3. Na aba **Users**, clique em **Add user** e cria as duas contas (a sua e a do seu parceiro), com e-mail e senha.
+4. Pronto — só quem tiver uma dessas contas consegue entrar no app.
+
+## Regras do Firestore (exigindo login)
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
-      allow read, write: if true; // trocar por regra com auth quando o login estiver pronto
+      allow read, write: if request.auth != null;
     }
   }
 }
 ```
 
-## Configurar o Firebase Storage (pra capa de livros)
-
-1. No console Firebase, menu lateral **Build → Storage → Começar**. Se pedir upgrade pro plano **Blaze**, é necessário aceitar (uso pessoal fica praticamente no gratuito).
-2. Nas regras do Storage (aba **Rules**), use temporariamente:
+## Regras do Storage (exigindo login)
 
 ```
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      allow read, write: if true; // trocar por regra com auth quando o login estiver pronto
+      allow read, write: if request.auth != null;
     }
   }
 }
