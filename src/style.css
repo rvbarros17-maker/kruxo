@@ -256,14 +256,24 @@ label {
   right: 24px;
   width: 56px;
   height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: var(--ink);
   color: #fff;
   border: none;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 50;
 }
 
 .modal-fundo {

@@ -19,12 +19,26 @@ export async function renderDashboard(container) {
 
   let resumo, consultas, metas, atividades;
   try {
-    [resumo, consultas, metas, atividades] = await Promise.all([
+    const resultados = await Promise.allSettled([
       getResumoDoMes(),
       getConsultas(),
       getMetas(),
       getAtividades(),
     ]);
+
+    const rotulos = ['resumo financeiro', 'consultas', 'metas', 'atividades'];
+    resultados.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`[Dashboard] Falha ao buscar "${rotulos[i]}":`, r.reason?.message || r.reason);
+      }
+    });
+
+    resumo = resultados[0].status === 'fulfilled'
+      ? resultados[0].value
+      : { receitas: 0, despesas: 0, saldo: 0, investimentos: 0, categoriasOrdenadas: [], alertas: [] };
+    consultas = resultados[1].status === 'fulfilled' ? resultados[1].value : [];
+    metas = resultados[2].status === 'fulfilled' ? resultados[2].value : [];
+    atividades = resultados[3].status === 'fulfilled' ? resultados[3].value : [];
   } catch (erro) {
     container.innerHTML = `<p class="estado-carregando">Não deu pra carregar os dados. Confira sua configuração do Firebase.<br><small>${erro.message}</small></p>`;
     return;

@@ -125,12 +125,24 @@ async function getTotalInvestimentos() {
 }
 
 export async function getResumoDoMes(mesReferencia = mesAtualRef()) {
-  const [contas, gastosRapidos, orcamentos, investimentos] = await Promise.all([
+  const resultados = await Promise.allSettled([
     getContasDoMes(mesReferencia),
     getGastosRapidosDoMes(mesReferencia),
     getOrcamentosDoMes(mesReferencia),
     getTotalInvestimentos(),
   ]);
+
+  const rotulos = ['contas', 'gastosRapidos', 'orcamentos', 'investimentos (lançamentos)'];
+  resultados.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`[Dashboard] Falha ao buscar "${rotulos[i]}":`, r.reason?.message || r.reason);
+    }
+  });
+
+  const contas = resultados[0].status === 'fulfilled' ? resultados[0].value : [];
+  const gastosRapidos = resultados[1].status === 'fulfilled' ? resultados[1].value : [];
+  const orcamentos = resultados[2].status === 'fulfilled' ? resultados[2].value : [];
+  const investimentos = resultados[3].status === 'fulfilled' ? resultados[3].value : 0;
 
   const receitas = contas
     .filter((c) => c.natureza === 'receita')
