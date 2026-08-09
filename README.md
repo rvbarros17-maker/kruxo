@@ -23,27 +23,32 @@ npm run dev
 3. Na aba **Users**, clique em **Add user** e cria as duas contas (a sua e a do seu parceiro), com e-mail e senha.
 4. Pronto — só quem tiver uma dessas contas consegue entrar no app.
 
-## Regras do Firestore (exigindo login)
+## Regras do Firestore (por usuário — cada um só acessa o que é seu)
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    match /{collection}/{docId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    match /investimentos/{invId}/lancamentos/{lancId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
 ```
 
-## Regras do Storage (exigindo login)
+## Regras do Storage (por usuário)
 
 ```
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+    match /capas/{uid}/{arquivo} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
   }
 }

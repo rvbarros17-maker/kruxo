@@ -10,10 +10,11 @@ import {
   doc,
   Timestamp,
 } from 'firebase/firestore';
+import { uidAtual, filtroUsuario } from './userScope.js';
 
 // Coleções esperadas no Firestore:
-// habitos          { nome, ativo: bool, criadoEm (Timestamp) }
-// habitoRegistros  { habitoId, data: 'YYYY-MM-DD', concluido: true }
+// habitos          { userId, nome, ativo: bool, criadoEm (Timestamp) }
+// habitoRegistros  { userId, habitoId, data: 'YYYY-MM-DD', concluido: true }
 //   (só existe um documento quando o hábito foi concluído naquele dia)
 
 export function paraChaveData(date) {
@@ -33,13 +34,14 @@ export function segundaDaSemana(dataRef = new Date()) {
 }
 
 export async function getHabitosAtivos() {
-  const q = query(collection(db, 'habitos'), where('ativo', '==', true));
+  const q = query(collection(db, 'habitos'), filtroUsuario(), where('ativo', '==', true));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function addHabito(nome) {
   return addDoc(collection(db, 'habitos'), {
+    userId: uidAtual(),
     nome,
     ativo: true,
     criadoEm: Timestamp.fromDate(new Date()),
@@ -56,13 +58,14 @@ export async function desativarHabito(habitoId) {
 
 export async function getRegistros(chavesData) {
   if (chavesData.length === 0) return [];
-  const q = query(collection(db, 'habitoRegistros'), where('data', 'in', chavesData));
+  const q = query(collection(db, 'habitoRegistros'), filtroUsuario(), where('data', 'in', chavesData));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function marcarConcluido(habitoId, chaveData) {
   return addDoc(collection(db, 'habitoRegistros'), {
+    userId: uidAtual(),
     habitoId,
     data: chaveData,
     concluido: true,

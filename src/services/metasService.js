@@ -1,15 +1,18 @@
 import { db } from '../firebase.js';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { uidAtual, filtroUsuario } from './userScope.js';
 
-// Coleção esperada: metas { titulo, descricao, prazo (Timestamp|null), progresso: 0-100, concluida: bool, criadoEm }
+// Coleção esperada: metas { userId, titulo, descricao, prazo (Timestamp|null), progresso: 0-100, concluida: bool, criadoEm }
 
 export async function getMetas() {
-  const snap = await getDocs(collection(db, 'metas'));
+  const q = query(collection(db, 'metas'), filtroUsuario());
+  const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function addMeta({ titulo, descricao, prazo }) {
   return addDoc(collection(db, 'metas'), {
+    userId: uidAtual(),
     titulo,
     descricao: descricao || '',
     prazo: prazo ? Timestamp.fromDate(prazo) : null,

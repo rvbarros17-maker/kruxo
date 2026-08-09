@@ -12,16 +12,17 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { nomeCategoria } from '../constants/categorias.js';
+import { uidAtual, filtroUsuario } from './userScope.js';
 
-// Coleções esperadas no Firestore:
-// contas          { nome, valor, categoriaId, natureza: 'despesa'|'receita',
+// Coleções esperadas no Firestore (todas com campo userId):
+// contas          { userId, nome, valor, categoriaId, natureza: 'despesa'|'receita',
 //                   tipoFrequencia: 'fixa'|'variavel', dataVencimento (Timestamp),
 //                   status: 'pago'|'pendente', compartilhada: bool,
 //                   mesReferencia: 'YYYY-MM' }
-// gastosRapidos   { valor, categoriaId, data (Timestamp), nota }
-// orcamentos      { categoriaId, mesReferencia: 'YYYY-MM', limite }
-// investimentos   { nome, tipo }
-//   └ lancamentos { tipo: 'aporte'|'resgate', valor, data (Timestamp) }
+// gastosRapidos   { userId, valor, categoriaId, data (Timestamp), nota }
+// orcamentos      { userId, categoriaId, mesReferencia: 'YYYY-MM', limite }
+// investimentos   { userId, nome, tipo }
+//   └ lancamentos { userId, tipo: 'aporte'|'resgate', valor, data (Timestamp) }
 //
 // Observação: "compartilhada" = true significa que só 50% do valor conta
 // nas suas finanças pessoais (a outra metade é da sua parceira).
@@ -37,7 +38,7 @@ function valorPessoal(conta) {
 }
 
 export async function getContasDoMes(mesReferencia = mesAtualRef()) {
-  const q = query(collection(db, 'contas'), where('mesReferencia', '==', mesReferencia));
+  const q = query(collection(db, 'contas'), filtroUsuario(), where('mesReferencia', '==', mesReferencia));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
@@ -45,6 +46,7 @@ export async function getContasDoMes(mesReferencia = mesAtualRef()) {
 export async function getContasPorNatureza(natureza, mesReferencia = mesAtualRef()) {
   const q = query(
     collection(db, 'contas'),
+    filtroUsuario(),
     where('mesReferencia', '==', mesReferencia),
     where('natureza', '==', natureza)
   );
@@ -58,6 +60,7 @@ export async function getGastosRapidosDoMes(mesReferencia = mesAtualRef()) {
   const fim = Timestamp.fromDate(new Date(ano, mes, 1));
   const q = query(
     collection(db, 'gastosRapidos'),
+    filtroUsuario(),
     where('data', '>=', inicio),
     where('data', '<', fim)
   );
@@ -66,7 +69,7 @@ export async function getGastosRapidosDoMes(mesReferencia = mesAtualRef()) {
 }
 
 export async function getOrcamentosDoMes(mesReferencia = mesAtualRef()) {
-  const q = query(collection(db, 'orcamentos'), where('mesReferencia', '==', mesReferencia));
+  const q = query(collection(db, 'orcamentos'), filtroUsuario(), where('mesReferencia', '==', mesReferencia));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
@@ -74,6 +77,7 @@ export async function getOrcamentosDoMes(mesReferencia = mesAtualRef()) {
 export async function setOrcamento({ categoriaId, mesReferencia = mesAtualRef(), limite }) {
   const q = query(
     collection(db, 'orcamentos'),
+    filtroUsuario(),
     where('categoriaId', '==', categoriaId),
     where('mesReferencia', '==', mesReferencia)
   );
@@ -83,7 +87,7 @@ export async function setOrcamento({ categoriaId, mesReferencia = mesAtualRef(),
     await updateDoc(doc(db, 'orcamentos', docId), { limite });
     return docId;
   }
-  const ref = await addDoc(collection(db, 'orcamentos'), { categoriaId, mesReferencia, limite });
+  const ref = await addDoc(collection(db, 'orcamentos'), { userId: uidAtual(), categoriaId, mesReferencia, limite });
   return ref.id;
 }
 
@@ -110,7 +114,8 @@ export async function getGastosPorCategoriaDoMes(mesReferencia = mesAtualRef()) 
 }
 
 async function getTotalInvestimentos() {
-  const snap = await getDocs(collectionGroup(db, 'lancamentos'));
+  const q = query(collectionGroup(db, 'lancamentos'), filtroUsuario());
+  const snap = await getDocs(q);
   let total = 0;
   snap.docs.forEach((d) => {
     const { tipo, valor } = d.data();
@@ -220,6 +225,7 @@ export async function getResumoDoMes(mesReferencia = mesAtualRef()) {
 
 export async function addGastoRapido({ valor, categoriaId, nota, data = new Date() }) {
   return addDoc(collection(db, 'gastosRapidos'), {
+    userId: uidAtual(),
     valor,
     categoriaId,
     nota: nota || '',
@@ -239,6 +245,7 @@ export async function addConta({
   mesReferencia = mesAtualRef(),
 }) {
   return addDoc(collection(db, 'contas'), {
+    userId: uidAtual(),
     nome,
     valor,
     categoriaId,
@@ -289,7 +296,8 @@ export async function duplicarConta(conta, novaDataVencimento) {
 // --- Investimentos ---
 
 export async function listInvestimentos() {
-  const snap = await getDocs(collection(db, 'investimentos'));
+  const q = query(collection(db, 'investimentos'), filtroUsuario());
+  const snap = await getDocs(q);
   const investimentos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   // busca os lançamentos de cada investimento em paralelo pra calcular o saldo
@@ -312,11 +320,12 @@ export async function listInvestimentos() {
 }
 
 export async function addInvestimento({ nome, tipo }) {
-  return addDoc(collection(db, 'investimentos'), { nome, tipo });
+  return addDoc(collection(db, 'investimentos'), { userId: uidAtual(), nome, tipo });
 }
 
 export async function addLancamento(investimentoId, { tipo, valor, data = new Date() }) {
   return addDoc(collection(db, 'investimentos', investimentoId, 'lancamentos'), {
+    userId: uidAtual(),
     tipo,
     valor,
     data: Timestamp.fromDate(data),

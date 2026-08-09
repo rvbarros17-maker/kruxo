@@ -1,17 +1,20 @@
 import { db, storage } from '../firebase.js';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { uidAtual, filtroUsuario } from './userScope.js';
 
-// livros { titulo, autor, paginasTotal, paginasLidas, status: 'quero_ler'|'lendo'|'lido',
+// livros { userId, titulo, autor, paginasTotal, paginasLidas, status: 'quero_ler'|'lendo'|'lido',
 //          avaliacao: 0-5, dataInicio: 'YYYY-MM-DD', dataFim: 'YYYY-MM-DD', capaUrl, capaPath }
 
 export async function getLivros() {
-  const snap = await getDocs(collection(db, 'livros'));
+  const q = query(collection(db, 'livros'), filtroUsuario());
+  const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function addLivro({ titulo, autor, paginasTotal, status, dataInicio, dataFim, avaliacao, capaFile }) {
   const ref_ = await addDoc(collection(db, 'livros'), {
+    userId: uidAtual(),
     titulo,
     autor: autor || '',
     paginasTotal: paginasTotal || 0,
@@ -32,7 +35,7 @@ export async function addLivro({ titulo, autor, paginasTotal, status, dataInicio
 }
 
 export async function enviarCapa(livroId, arquivo) {
-  const caminho = `capas/${livroId}-${arquivo.name}`;
+  const caminho = `capas/${uidAtual()}/${livroId}-${arquivo.name}`;
   const storageRef = ref(storage, caminho);
   await uploadBytes(storageRef, arquivo);
   const url = await getDownloadURL(storageRef);

@@ -1,18 +1,20 @@
 import { db } from '../firebase.js';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { uidAtual, filtroUsuario } from './userScope.js';
 
 // Coleções esperadas:
-// consultas    { titulo, data: 'YYYY-MM-DD', local, concluida: bool }
-// medicacoes   { nome, dosagem, horario, ativo: bool }
+// consultas    { userId, titulo, data: 'YYYY-MM-DD', local, concluida: bool }
+// medicacoes   { userId, nome, dosagem, horario, ativo: bool }
 
 export async function getConsultas() {
-  const snap = await getDocs(collection(db, 'consultas'));
+  const q = query(collection(db, 'consultas'), filtroUsuario());
+  const snap = await getDocs(q);
   const consultas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   return consultas.sort((a, b) => (a.data > b.data ? 1 : -1));
 }
 
 export async function addConsulta({ titulo, data, local }) {
-  return addDoc(collection(db, 'consultas'), { titulo, data, local: local || '', concluida: false });
+  return addDoc(collection(db, 'consultas'), { userId: uidAtual(), titulo, data, local: local || '', concluida: false });
 }
 
 export async function atualizarConsulta(id, dados) {
@@ -28,13 +30,14 @@ export async function excluirConsulta(id) {
 }
 
 export async function getMedicacoes() {
-  const q = query(collection(db, 'medicacoes'), where('ativo', '==', true));
+  const q = query(collection(db, 'medicacoes'), filtroUsuario(), where('ativo', '==', true));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function addMedicacao({ nome, dosagem, horario }) {
   return addDoc(collection(db, 'medicacoes'), {
+    userId: uidAtual(),
     nome,
     dosagem: dosagem || '',
     horario: horario || '',

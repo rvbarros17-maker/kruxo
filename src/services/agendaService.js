@@ -1,15 +1,18 @@
 import { db } from '../firebase.js';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { uidAtual, filtroUsuario } from './userScope.js';
 
-// Coleção esperada: atividades { titulo, data: 'YYYY-MM-DD', horario, concluida: bool }
+// Coleção esperada: atividades { userId, titulo, data: 'YYYY-MM-DD', horario, concluida: bool }
 
 export async function getAtividades() {
-  const snap = await getDocs(collection(db, 'atividades'));
+  const q = query(collection(db, 'atividades'), filtroUsuario());
+  const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function addAtividade({ titulo, data, horario }) {
   return addDoc(collection(db, 'atividades'), {
+    userId: uidAtual(),
     titulo,
     data,
     horario: horario || '',
