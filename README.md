@@ -71,6 +71,18 @@ Sem dados no Firestore ainda, o Dashboard carrega com tudo zerado. Adicione manu
 
 ## Próximos passos
 
-- Autenticação (Firebase Auth) pra proteger os dados
-- Telas de Despesas, Receitas, Investimentos, Casal, Orçamento e Calendário
-- Formulário completo de "nova conta" (fixa/variável, vencimento, duplicar pro mês seguinte)
+- Formulário completo de "nova conta" (fixa/variável, vencimento, duplicar pro mês seguinte) — já feito
+- Atualização em tempo real (Firestore `onSnapshot`)
+- Integração do Casal entre as contas dos dois logins
+
+## PWA (instalar no celular)
+
+O app já vem com `manifest.json`, ícones e um Service Worker (`sw.js`) prontos.
+
+**Como instalar:**
+- **Android (Chrome)**: abre o site publicado (Vercel), toca no menu (⋮) → "Adicionar à tela inicial" ou "Instalar app"
+- **iPhone (Safari)**: abre o site, toca no ícone de compartilhar (□↑) → "Adicionar à Tela de Início"
+
+**Importante**: o Service Worker só funciona em produção (HTTPS, como no Vercel) ou em `localhost` — não funciona acessando pelo IP da rede local (tipo `192.168.x.x`) sem certificado HTTPS. Isso significa que o "Adicionar à tela inicial" só vai aparecer testando pela URL publicada ou no próprio PC.
+
+A estratégia do Service Worker é "network-first": ele sempre busca dado novo do Firestore quando tem internet, e só usa o cache se estiver offline — assim você nunca vê saldo desatualizado por engano.
